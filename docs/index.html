@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Velora — a calm, privacy-first browser and start page. Zen-style vertical tabs, an encrypted local vault, and honest privacy tools. No accounts, no analytics." />
+<title>Velora — A calm, privacy-first browser</title>
+<style>
+  :root {
+    --bg: #090b10;
+    --surface: #0f1218;
+    --raised: #171c26;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.15);
+    --ink: #e9edf4;
+    --muted: #a8b1bd;
+    --faint: #77808d;
+    --accent: #4da3ff;
+    --accent2: #2bd4e8;
+    --accent-soft: rgba(77, 163, 255, 0.12);
+    --shadow: 0 16px 48px -16px rgba(0, 0, 0, 0.65);
+    --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(52rem 26rem at 50% -8rem, var(--accent-soft), transparent 65%),
+      radial-gradient(42rem 30rem at 100% 108%, rgba(43, 212, 232, 0.05), transparent 70%);
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent2); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* Nav */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(16px) saturate(160%);
+    background: rgba(9, 11, 16, 0.78);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 12px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+  .brand img { width: 26px; height: 26px; }
+  .nav-links { margin-left: auto; display: flex; gap: 22px; }
+  .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta {
+    margin-left: 6px; padding: 8px 14px; border-radius: 10px;
+    background: var(--accent); color: #0a1016 !important; font-weight: 600; font-size: 14px;
+    transition: filter 120ms ease;
+  }
+  .nav-cta:hover { filter: brightness(1.12); }
+  @media (max-width: 640px) { .nav-links a:not(.nav-cta) { display: none; } }
+
+  /* Hero */
+  .hero { text-align: center; padding: 88px 0 40px; }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 58px);
+    font-weight: 700; letter-spacing: -0.03em; line-height: 1.1;
+    margin-bottom: 18px;
+  }
+  .hero h1 span {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p { color: var(--muted); font-size: clamp(15px, 2vw, 18px); max-width: 620px; margin: 0 auto 30px; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px; border-radius: 12px; font-weight: 600; font-size: 15px;
+    transition: transform 120ms ease, filter 120ms ease, border-color 120ms ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #0a1016; }
+  .btn-primary:hover { color: #0a1016; filter: brightness(1.1); }
+  .btn-secondary { border: 1px solid var(--line-strong); color: var(--ink); background: var(--surface); }
+  .btn-secondary:hover { border-color: rgba(255, 255, 255, 0.3); color: var(--ink); }
+  .hero small { display: block; color: var(--faint); font-size: 12.5px; }
+
+  /* Mockup */
+  .mockup-outer { padding: 36px 0 10px; }
+  .mockup {
+    max-width: 880px; margin: 0 auto;
+    border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden;
+    background: var(--surface); box-shadow: var(--shadow);
+  }
+  .m-titlebar {
+    display: flex; align-items: center; height: 36px;
+    border-bottom: 1px solid var(--line); padding: 0 10px 0 14px;
+  }
+  .m-titlebar img { width: 15px; height: 15px; margin-right: 8px; }
+  .m-titlebar .m-name { font-size: 12px; font-weight: 600; }
+  .m-win { margin-left: auto; display: flex; gap: 18px; color: var(--faint); font-size: 11px; font-family: monospace; }
+  .m-body { display: flex; }
+  .m-side {
+    width: 46px; border-right: 1px solid var(--line);
+    padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .m-tab {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--muted);
+  }
+  .m-tab.active { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(77, 163, 255, 0.35); }
+  .m-tab.add { color: var(--faint); }
+  .m-content { flex: 1; padding: 26px 22px; text-align: center; }
+  .m-clock { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .m-clock span { color: var(--accent); }
+  .m-date { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
+  .m-search {
+    max-width: 420px; margin: 16px auto; height: 44px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--raised);
+    display: flex; align-items: center; padding: 0 8px 0 16px; gap: 10px; color: var(--faint); font-size: 13.5px;
+  }
+  .m-search .go {
+    margin-left: auto; width: 30px; height: 30px; border-radius: 999px;
+    background: var(--accent); display: flex; align-items: center; justify-content: center; color: #0a1016; font-size: 13px;
+  }
+  .m-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; max-width: 560px; margin: 0 auto; }
+  .m-tile {
+    border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,0.015);
+    padding: 10px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .m-tile i {
+    width: 26px; height: 26px; border-radius: 8px; font-style: normal; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    background: hsl(var(--h) 85% 60% / 0.14); color: hsl(var(--h) 85% 70%);
+  }
+  .m-tile b { font-weight: 400; font-size: 10px; color: var(--muted); }
+  .m-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; text-align: left; }
+  .m-panel { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .m-panel h4 { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+  .m-panel p { font-size: 11px; color: var(--faint); line-height: 1.5; }
+  .m-bar { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .m-dot { width: 7px; height: 7px; border-radius: 999px; background: #3fd699; display: inline-block; }
+  @media (max-width: 720px) { .m-grid { grid-template-columns: repeat(4, 1fr); } .m-panels { grid-template-columns: 1fr; } }
+
+  /* Sections */
+  section { padding: 64px 0; }
+  .section-head { text-align: center; margin-bottom: 40px; }
+  .section-head h2 { font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.02em; }
+  .section-head p { color: var(--muted); margin-top: 8px; max-width: 560px; margin-left: auto; margin-right: auto; }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 900px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .grid-3 { grid-template-columns: 1fr; } }
+  .card {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+    padding: 22px; transition: border-color 150ms ease, transform 150ms ease;
+  }
+  .card:hover { border-color: rgba(77, 163, 255, 0.4); transform: translateY(-3px); }
+  .card .icon {
+    width: 38px; height: 38px; border-radius: 11px; background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+  }
+  .card h3 { font-size: 16px; margin-bottom: 6px; letter-spacing: -0.01em; }
+  .card p { color: var(--muted); font-size: 14px; }
+  .card p code { background: var(--raised); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 12px; }
+
+  /* Privacy */
+  .privacy-list { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .privacy-item { display: flex; gap: 14px; align-items: flex-start; }
+  .privacy-item .check {
+    flex: none; width: 22px; height: 22px; border-radius: 999px;
+    background: rgba(63, 214, 153, 0.12); color: #3fd699;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  .privacy-item strong { color: var(--ink); }
+  .privacy-item span { color: var(--muted); font-size: 14.5px; }
+
+  /* Download */
+  .dl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; max-width: 760px; margin: 0 auto; }
+  @media (max-width: 640px) { .dl-grid { grid-template-columns: 1fr; } }
+  .dl-card {
+    border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface);
+    padding: 26px; text-align: center;
+  }
+  .dl-card h3 { font-size: 18px; margin-bottom: 4px; }
+  .dl-card p { color: var(--muted); font-size: 13.5px; margin-bottom: 18px; }
+  .dl-card .btn { width: 100%; justify-content: center; }
+  .dl-note { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 18px; }
+  .dl-note a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+
+  footer { border-top: 1px solid var(--line); padding: 34px 0 46px; color: var(--faint); font-size: 13px; }
+  .foot-inner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .foot-inner .sep { flex: 1; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-inner">
+    <a class="brand" href="#"><img src="logo.png" alt="Velora logo" /> Velora</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#download">Download</a>
+      <a class="nav-cta" href="https://github.com/RexenGPU/velora">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Your browsing<br /><span>belongs to you.</span></h1>
+    <p>
+      Velora is a calm, privacy-first browser and start page. Zen-style vertical tabs,
+      an encrypted local vault, and honest privacy tools — no account, no server, no analytics.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/RexenGPU/velora/releases/download/v1.6.0/Velora-Setup-1.6.0.exe">⬇ Download for Windows</a>
+      <a class="btn btn-secondary" href="https://github.com/RexenGPU/velora">View source on GitHub</a>
+    </div>
+    <small>Windows 10/11 · 64-bit · Free & open source (MIT)</small>
+  </div>
+</header>
+
+<div class="mockup-outer">
+  <div class="wrap">
+    <div class="mockup" role="img" aria-label="Velora browser interface preview">
+      <div class="m-titlebar">
+        <img src="logo.png" alt="" />
+        <span class="m-name">Velora</span>
+        <span class="m-win">— &nbsp;▢ &nbsp;✕</span>
+      </div>
+      <div class="m-body">
+        <div class="m-side">
+          <div class="m-tab add">+</div>
+          <div class="m-tab active">V</div>
+          <div class="m-tab">G</div>
+          <div class="m-tab">Y</div>
+        </div>
+        <div class="m-content">
+          <div class="m-clock">20:47<span>:05</span></div>
+          <div class="m-date">Friday, October 16</div>
+          <div class="m-search">🔍&nbsp; Search the web or enter an address <span class="go">→</span></div>
+          <div class="m-grid">
+            <div class="m-tile" style="--h:215"><i>D</i><b>DuckDuckGo</b></div>
+            <div class="m-tile" style="--h:172"><i>W</i><b>Wikipedia</b></div>
+            <div class="m-tile" style="--h:265"><i>G</i><b>GitHub</b></div>
+            <div class="m-tile" style="--h:45"><i>H</i><b>Hacker News</b></div>
+            <div class="m-tile" style="--h:330"><i>E</i><b>EFF</b></div>
+            <div class="m-tile" style="--h:195"><i>P</i><b>Privacy Guides</b></div>
+          </div>
+          <div class="m-panels">
+            <div class="m-panel">
+              <h4>Privacy overview</h4>
+              <div class="m-bar"><span class="m-dot"></span> Loaded over HTTPS</div>
+              <p>Favorites, settings and the vault stay on this device — no server, nothing uploaded.</p>
+            </div>
+            <div class="m-panel">
+              <h4>Password vault</h4>
+              <div class="m-bar"><span class="m-dot"></span> AES-GCM 256-bit</div>
+              <p>Master password never stored. Optional auto-login while unlocked.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Built like a browser, honest like a tool</h2>
+      <p>Everything you need for daily browsing, with privacy as the architecture — not a marketing layer.</p>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="icon">🗂</div>
+        <h3>Zen-style vertical tabs</h3>
+        <p>A slim sidebar that expands on hover with real site favicons. Content always adapts — nothing is ever covered.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🧭</div>
+        <h3>One unified bar</h3>
+        <p>Navigation, HTTPS indicator, hostname and window controls in a single top bar that adapts to what you're doing.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⌨️</div>
+        <h3>Real shortcuts</h3>
+        <p><code>Ctrl+T</code> new tab · <code>Ctrl+W</code> close · <code>Ctrl+Tab</code> cycle · <code>/</code> to search, or type an address to open it directly.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔐</div>
+        <h3>Encrypted vault</h3>
+        <p>AES-GCM 256-bit with PBKDF2 (310k iterations). Your master password is never stored — it exists only in memory while unlocked.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🕵️</div>
+        <h3>Honest privacy tools</h3>
+        <p>A URL inspector that shows what's actually observable, a browser checklist, and clear explanations — no fabricated scores.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🏠</div>
+        <h3>A start page you own</h3>
+        <p>Live clock, quick links with categories, any search engine you want (including your own), optional history — off by default.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Privacy-first, verifiably</h2>
+      <p>Not claims — mechanics. Everything below is in the source.</p>
+    </div>
+    <div class="privacy-list">
+      <div class="privacy-item"><div class="check">✓</div><span><strong>No server.</strong> There is no Velora backend to send anything to. No account, no sync, no telemetry.</span></div>
+      <div class="privacy-item"><div class="check">✓</div><span><strong>Only two things leave your device:</strong> search queries go directly to your chosen engine, and opening a link contacts that site. Optional site icons contact DuckDuckGo's icon service — and can be switched off.</span></div>
+      <div class="privacy-item"><div class="check">✓</div><span><strong>Vault encryption:</strong> AES-GCM 256-bit, key derived from your master password with PBKDF2-SHA256. A forgotten master password cannot be recovered — by design.</span></div>
+      <div class="privacy-item"><div class="check">✓</div><span><strong>History is opt-in</strong> and off by default. When enabled: local only, capped at 500 entries, excluded from backups, clearable anytime.</span></div>
+      <div class="privacy-item"><div class="check">✓</div><span><strong>Restrictive CSP</strong> in production builds (<code>default-src 'none'</code>) and zero third-party scripts — even on this page.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Download Velora</h2>
+      <p>Free, open source, and signed with love. Pick your flavor:</p>
+    </div>
+    <div class="dl-grid">
+      <div class="dl-card">
+        <h3>Installer</h3>
+        <p>NSIS setup with Start-menu shortcut and uninstall entry. Recommended.</p>
+        <a class="btn btn-primary" href="https://github.com/RexenGPU/velora/releases/download/v1.6.0/Velora-Setup-1.6.0.exe">Velora-Setup-1.6.0.exe</a>
+      </div>
+      <div class="dl-card">
+        <h3>Portable</h3>
+        <p>One standalone executable — run it from anywhere, no installation.</p>
+        <a class="btn btn-secondary" href="https://github.com/RexenGPU/velora/releases/download/v1.6.0/Velora-1.6.0-portable.exe">Velora-1.6.0-portable.exe</a>
+      </div>
+    </div>
+    <p class="dl-note">
+      SHA-256 checksums are published in the <a href="https://github.com/RexenGPU/velora/releases">release notes</a>.<br />
+      Also available: build it yourself with <code>npm run dist</code> from the source.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-inner">
+    <span>Velora — MIT License</span>
+    <span class="sep"></span>
+    <a href="https://github.com/RexenGPU/velora">Source</a>
+    <a href="https://github.com/RexenGPU/velora/releases">Releases</a>
+    <a href="https://github.com/RexenGPU/velora/blob/main/LICENSE">License</a>
+  </div>
+</footer>
+
+</body>
+</html>

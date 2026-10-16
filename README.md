@@ -66,6 +66,17 @@ Velora is a desktop browser and web start page built around one idea: **your bro
 - **Safe rendering** — user content never injected as raw HTML; all URLs validated (http/https only).
 - localStorage is **not encrypted** — which is why the vault encrypts everything itself, and why you shouldn't store secrets outside it.
 
+## Downloads
+
+Grab the latest Windows build from the [**Releases** tab](https://github.com/RexenGPU/velora/releases/latest):
+
+| File | Description |
+|---|---|
+| `Velora-Setup-x.y.z.exe` | NSIS installer — Start-menu shortcut, uninstall entry |
+| `Velora-x.y.z-portable.exe` | Standalone portable executable |
+
+SHA-256 checksums are published with every release. The [landing page](https://rexengpu.github.io/velora/) is deployed from `docs/` via the included workflow — it presents the browser; it doesn't run it.
+
 ## Getting started
 
 Requires Node.js 20.19+ (or 22.12+).
@@ -90,9 +101,11 @@ Generates in `release/`:
 
 > The app icon is generated from `src/assets/logo.png`. Drop your own image at that path and run `npm run icon` to rebrand everything (window icon, favicon, sidebar, installer).
 
-### Deploy the web version
+### The landing page
 
-The build is a static site with relative paths — works from any base URL. The included GitHub Actions workflow (`.github/workflows/deploy.yml`) deploys `dist/` to GitHub Pages on every push to `main` (enable **Settings → Pages → Source: GitHub Actions**).
+`docs/index.html` is a static product page (this is what `https://<user>.github.io/velora/` serves). The included workflow (`.github/workflows/deploy.yml`) deploys it on every push to `main`.
+
+The **web dashboard itself** builds to a static site with relative paths (`npm run build` → `dist/`) and can be hosted anywhere — including GitHub Pages on a different branch — with zero configuration.
 
 ## Keyboard shortcuts
 
