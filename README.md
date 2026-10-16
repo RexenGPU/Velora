@@ -22,7 +22,7 @@
 
 Velora is a desktop browser and web start page built around one idea: **your browsing belongs to you**. It combines a polished, Zen-style vertical tab interface with an honest privacy toolkit — an encrypted local password vault, a URL-based website inspector, and clear explanations of what is (and isn't) being tracked. No account, no server, no telemetry.
 
-## ✨ The desktop browser
+## The desktop browser
 
 - **Zen-style vertical tabs** — a slim 46 px sidebar that expands smoothly on hover (210 px) with per-site favicons, colored letter-tile fallbacks, and spring-eased enter animations. The content always adapts — nothing is ever covered.
 - **One unified top bar** — brand on the dashboard; back / forward / reload / home, a colored HTTPS indicator with the site's hostname, and "open in system browser" on external pages. Window controls always on the right.
@@ -31,7 +31,7 @@ Velora is a desktop browser and web start page built around one idea: **your bro
 - **Configurable startup** — launch on the dashboard or open any custom page in a tab.
 - **Resilient packaging** — window icons are read from outside the asar, and first-run load failures (antivirus scans, slow disks) are retried automatically.
 
-## 🏠 The start page
+## The start page
 
 - **Live clock** with seconds tinted in your accent color, greeting and date — or hide it entirely.
 - **Search engine selection** — DuckDuckGo, Brave, Startpage, Mojeek, Google, **or your own custom engine** (any URL template with a `%s` placeholder).
@@ -51,13 +51,13 @@ Velora is a desktop browser and web start page built around one idea: **your bro
 
 > ⚠️ A forgotten master password cannot be recovered — not by you, not by anyone. Export regularly.
 
-## 🕵️ The privacy toolkit
+## The privacy toolkit
 
 - **Website inspector** — enter a URL and see what's observable from the address itself: HTTPS status, tracking parameters (with a one-click cleaned URL), matches against a transparent tracker reference list (~60 well-known domains), punycode and private-address warnings. Velora contacts nothing — and it clearly separates verified observations from what a web page can *never* see cross-origin.
 - **Privacy checklist** — per-browser settings paths (Firefox, Chrome, Edge, Safari), GPC, secure DNS, third-party cookies — with progress stored locally.
 - **Education panels** — third-party cookies explained, private browsing vs. tracking protection, reputable resources (EFF, Privacy Guides, Have I Been Pwned…).
 
-## 🔒 Privacy architecture
+## Privacy architecture
 
 - **No account, no server.** Nothing is sent to Velora — there is no Velora server.
 - **No analytics, no third-party scripts.** Fonts are self-hosted; no external APIs are called at startup.
@@ -66,7 +66,7 @@ Velora is a desktop browser and web start page built around one idea: **your bro
 - **Safe rendering** — user content never injected as raw HTML; all URLs validated (http/https only).
 - localStorage is **not encrypted** — which is why the vault encrypts everything itself, and why you shouldn't store secrets outside it.
 
-## 🚀 Getting started
+## Getting started
 
 Requires Node.js 20.19+ (or 22.12+).
 
@@ -94,7 +94,7 @@ Generates in `release/`:
 
 The build is a static site with relative paths — works from any base URL. The included GitHub Actions workflow (`.github/workflows/deploy.yml`) deploys `dist/` to GitHub Pages on every push to `main` (enable **Settings → Pages → Source: GitHub Actions**).
 
-## ⌨️ Keyboard shortcuts
+## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
@@ -105,7 +105,7 @@ The build is a static site with relative paths — works from any base URL. The 
 | `Ctrl+Tab` | Cycle tabs |
 | `Esc` | Close dialogs and menus |
 
-## 📁 Project structure
+## Project structure
 
 ```
 src/
@@ -128,7 +128,7 @@ electron/
 scripts/             # make-icon, CDP end-to-end test suites
 ```
 
-## 🤝 Contributing
+## Contributing
 
 PRs welcome. Run `npm test` and `npm run build` before submitting; E2E scripts for the desktop shell live in `scripts/` and use Chrome DevTools Protocol.
 
