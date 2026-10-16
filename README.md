@@ -39,7 +39,7 @@ Velora is a desktop browser and web start page built around one idea: **your bro
 - **Optional history** — **off by default**. When enabled, stays local, capped at 500 entries, grouped by day, excluded from backups, clearable anytime.
 - **Dark / light / system themes**, six accent colors, comfortable or compact density.
 
-## 🔐 The password vault
+## The password vault
 
 - **AES-GCM 256-bit encryption**, key derived with PBKDF2-SHA256 (310,000 iterations).
 - The **master password is never stored** — it exists only in memory while the vault is unlocked, and is dropped on reload.
