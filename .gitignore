@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-ssr
+release
+build
+*.local
+.DS_Store
+coverage
+.vite
+*.tsbuildinfo
+.test-profile*

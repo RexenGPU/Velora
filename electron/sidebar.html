@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Velora</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: #0f1218;
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    color: #a8b1bd;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  #newtab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin: 7px auto 9px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #77808d;
+    cursor: default;
+    flex: none;
+    transition: background-color 120ms ease, color 120ms ease, transform 200ms ease;
+  }
+  #newtab:hover { background: rgba(255, 255, 255, 0.06); color: #e9edf4; transform: rotate(90deg); }
+  #newtab svg { width: 14px; height: 14px; }
+
+  #list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 0;
+    padding: 0 5px 6px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+  }
+  #list::-webkit-scrollbar { display: none; }
+
+  .tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 34px;
+    padding: 0 8px 0 9px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #a8b1bd;
+    white-space: nowrap;
+    cursor: default;
+    flex: none;
+    overflow: hidden;
+    transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease;
+  }
+  .tab:focus-visible { outline: 2px solid #4da3ff; outline-offset: -2px; }
+  .tab:hover { background: rgba(255, 255, 255, 0.05); color: #e9edf4; }
+  .tab.active {
+    background: rgba(77, 163, 255, 0.12);
+    border-color: rgba(77, 163, 255, 0.35);
+    color: #e9edf4;
+  }
+
+  @keyframes tab-in {
+    from { opacity: 0; transform: translateY(-10px) scale(0.92); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .tab.entering { animation: tab-in 230ms cubic-bezier(0.32, 0.72, 0, 1); }
+
+  .tile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: hsl(var(--h, 215) 85% 70%);
+    background: hsl(var(--h, 215) 85% 60% / 0.14);
+    flex: none;
+    overflow: hidden;
+  }
+  .tile img {
+    position: absolute;
+    inset: 1px;
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+  }
+
+  .label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    opacity: 1;
+    transition: max-width 180ms cubic-bezier(0.32, 0.72, 0, 1), opacity 140ms ease;
+  }
+  body:not(.expanded) .label { max-width: 0; opacity: 0; }
+
+  .close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #77808d;
+    opacity: 0;
+    flex: none;
+    cursor: default;
+    max-width: 20px;
+    transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease,
+      max-width 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .tab:hover .close, .tab.active .close { opacity: 1; }
+  .close:hover { background: rgba(255, 255, 255, 0.12); color: #e9edf4; }
+  .close svg { width: 8px; height: 8px; }
+  body:not(.expanded) .close { max-width: 0; opacity: 0; padding: 0; }
+</style>
+</head>
+<body>
+  <button id="newtab" title="New tab (Ctrl+T)" aria-label="New tab">
+    <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <div id="list"></div>
+<script>
+  const api = window.veloraChrome
+  const list = document.getElementById('list')
+  const seen = new Set()
+
+  const CLOSE_SVG = '<svg viewBox="0 0 10 10" fill="none"><path d="M0.5 0.5 9.5 9.5M9.5 0.5 0.5 9.5" stroke="currentColor" stroke-width="1.4"/></svg>'
+
+  function hueFor(text) {
+    let hash = 0
+    for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) | 0
+    return Math.abs(hash) % 360
+  }
+
+  function hostOf(url) {
+    try { return new URL(url).hostname } catch { return url }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;' })[c])
+  }
+
+  function render(tabs) {
+    list.innerHTML = ''
+    for (const t of tabs) {
+      const el = document.createElement('div')
+      const isNew = !seen.has(t.id)
+      seen.add(t.id)
+      el.className = 'tab' + (t.active ? ' active' : '') + (isNew && !t.home ? ' entering' : '')
+      el.dataset.id = t.id
+      el.title = t.home ? 'Velora — dashboard' : (t.title || '')
+
+      if (t.home) {
+        el.innerHTML =
+          '<span class="tile" style="--h:205"><img src="logo.png" alt="" draggable="false"></span>' +
+          '<span class="label">Velora</span>'
+      } else {
+        const host = hostOf(t.url || '')
+        const h = hueFor(host || String(t.id))
+        const letter = escapeHtml((host || '?').charAt(0).toUpperCase())
+        const favicon = t.favicon
+          ? '<img src="' + escapeHtml(t.favicon) + '" alt="" draggable="false" onerror="this.remove()">'
+          : ''
+        el.innerHTML =
+          '<span class="tile" style="--h:' + h + '">' + letter + favicon + '</span>' +
+          '<span class="label">' + escapeHtml(t.title || host) + '</span>' +
+          '<button class="close" title="Close tab" aria-label="Close tab">' + CLOSE_SVG + '</button>'
+        const closeBtn = el.querySelector('.close')
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          api.closeTab(t.id)
+        })
+      }
+
+      el.addEventListener('click', () => api.activateTab(t.id))
+      el.addEventListener('auxclick', (e) => {
+        if (e.button === 1) api.closeTab(t.id)
+      })
+      list.appendChild(el)
+    }
+    const active = list.querySelector('.tab.active')
+    if (active) active.scrollIntoView({ block: 'nearest' })
+  }
+
+  document.getElementById('newtab').addEventListener('click', () => api.newTab())
+
+  window.addEventListener('velora:tabs', (e) => render(e.detail))
+
+  // Hover expansion — CSS animates labels here, main animates the view bounds.
+  const setExpanded = (v) => {
+    document.body.classList.toggle('expanded', v)
+    api.setSidebarHover(v)
+  }
+  document.body.addEventListener('mouseenter', () => setExpanded(true))
+  document.body.addEventListener('mouseleave', () => setExpanded(false))
+</script>
+</body>
+</html>

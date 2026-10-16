@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Velora</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    height: 36px;
+    display: flex;
+    align-items: stretch;
+    background: #0f1218;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    color: #a8b1bd;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+  }
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #a8b1bd;
+    cursor: default;
+    flex: none;
+    transition: background-color 100ms ease, color 100ms ease;
+  }
+  button:focus-visible { outline: 2px solid #4da3ff; outline-offset: -2px; }
+  button:not(:disabled):hover { background: rgba(255, 255, 255, 0.06); color: #e9edf4; }
+  button:disabled { opacity: 0.3; }
+  button svg { width: 14px; height: 14px; }
+
+  /* Brand shown on the dashboard */
+  #brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #e9edf4;
+    flex: none;
+  }
+
+  /* Navigation cluster shown on external tabs */
+  #nav { display: flex; align-items: center; gap: 2px; padding-left: 6px; flex: none; }
+  #nav button { width: 30px; height: 28px; border-radius: 7px; margin: 4px 0; }
+
+  #pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 4px 6px;
+    padding: 0 10px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    max-width: 280px;
+    flex: none;
+  }
+  #pill svg { width: 11px; height: 11px; flex: none; }
+  #pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .drag { flex: 1; -webkit-app-region: drag; }
+
+  #external { width: 30px; height: 28px; border-radius: 7px; margin: 4px 2px 4px 0; }
+
+  .right { display: flex; align-items: stretch; height: 100%; -webkit-app-region: no-drag; }
+  .win-btn {
+    width: 46px;
+    height: 100%;
+  }
+  .win-btn svg { width: 10px; height: 10px; }
+  .win-btn:active { background: rgba(255, 255, 255, 0.1); }
+  .win-btn-close:hover { background: #e81123 !important; color: #fff !important; }
+  .win-btn-close:active { background: #c50e1f !important; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div id="brand" class="hidden">
+    <img src="logo.png" width="15" height="15" alt="" draggable="false" />
+    <span>Velora</span>
+  </div>
+
+  <div id="nav" class="hidden">
+    <button id="back" title="Back" aria-label="Back" disabled>
+      <svg viewBox="0 0 16 16" fill="none"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button id="forward" title="Forward" aria-label="Forward" disabled>
+      <svg viewBox="0 0 16 16" fill="none"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button id="reload" title="Reload" aria-label="Reload">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M13.5 8a5.5 5.5 0 1 1-1.9-4.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M13.8 2.6v3h-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button id="home" title="Back to Velora" aria-label="Back to Velora">
+      <svg viewBox="0 0 16 16" fill="none"><path d="m2.5 7.5 5.5-5 5.5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 8.5V13.5h7V8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div id="pill">
+      <svg id="lock" viewBox="0 0 16 16" fill="none"><path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.4"/></svg>
+      <span id="hostname">…</span>
+    </div>
+  </div>
+
+  <div class="drag"></div>
+
+  <button id="external" class="hidden" title="Open in system browser" aria-label="Open in system browser">
+    <svg viewBox="0 0 16 16" fill="none"><path d="M6.5 3H3v10h10V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 3H13v3.5M13 3 7.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="right">
+    <button id="min" class="win-btn" title="Minimize" aria-label="Minimize">
+      <svg viewBox="0 0 10 10" fill="none"><path d="M0.5 5.5h9" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
+    <button id="max" class="win-btn" title="Maximize" aria-label="Maximize">
+      <svg viewBox="0 0 10 10" fill="none"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
+    <button id="close" class="win-btn win-btn-close" title="Close" aria-label="Close">
+      <svg viewBox="0 0 10 10" fill="none"><path d="M0.5 0.5 9.5 9.5M9.5 0.5 0.5 9.5" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
+  </div>
+<script>
+  const api = window.veloraChrome
+  const $ = (id) => document.getElementById(id)
+
+  $('min').addEventListener('click', api.minimize)
+  $('max').addEventListener('click', api.maximize)
+  $('close').addEventListener('click', api.close)
+  $('back').addEventListener('click', api.navBack)
+  $('forward').addEventListener('click', api.navForward)
+  $('reload').addEventListener('click', api.navReload)
+  $('home').addEventListener('click', api.navHome)
+  $('external').addEventListener('click', api.navExternal)
+
+  const MAX_SVG = '<svg viewBox="0 0 10 10" fill="none"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1"/></svg>'
+  const RESTORE_SVG = '<svg viewBox="0 0 10 10" fill="none"><path d="M1.5 1.5H8.5M1.5 1.5V8.5" stroke="currentColor" stroke-width="1"/><rect x="3.5" y="3.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1"/></svg>'
+
+  function hostOf(url) {
+    try { return new URL(url).hostname } catch { return url }
+  }
+
+  function applyState(state) {
+    const onPage = !!state.url
+    $('brand').classList.toggle('hidden', onPage)
+    $('nav').classList.toggle('hidden', !onPage)
+    $('external').classList.toggle('hidden', !onPage)
+    if (onPage) {
+      $('back').disabled = !state.canGoBack
+      $('forward').disabled = !state.canGoForward
+      $('hostname').textContent = hostOf(state.url)
+      $('hostname').parentElement.title = state.url
+      $('lock').style.color = state.url.startsWith('https:') ? '#3fd699' : '#f6b954'
+    }
+  }
+
+  window.addEventListener('velora:navstate', (e) => applyState(e.detail))
+  window.addEventListener('velora:maximized', (e) => {
+    $('max').innerHTML = e.detail ? RESTORE_SVG : MAX_SVG
+    $('max').title = e.detail ? 'Restore' : 'Maximize'
+    $('max').setAttribute('aria-label', e.detail ? 'Restore' : 'Maximize')
+  })
+</script>
+</body>
+</html>

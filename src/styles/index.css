@@ -1,0 +1,323 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------- Design tokens ---------- */
+:root,
+[data-theme="light"] {
+  --v-bg: #f4f5f7;
+  --v-surface: #ffffff;
+  --v-raised: #eef0f3;
+  --v-line: rgb(15 23 42 / 0.09);
+  --v-line-strong: rgb(15 23 42 / 0.16);
+  --v-ink: #10141b;
+  --v-muted: #3d4450;
+  --v-faint: #646d7b;
+  --v-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 12px 32px -12px rgb(15 23 42 / 0.12);
+  --v-glow: 0.45;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --v-bg: #090b10;
+  --v-surface: #0f1218;
+  --v-raised: #171c26;
+  --v-line: rgb(255 255 255 / 0.07);
+  --v-line-strong: rgb(255 255 255 / 0.15);
+  --v-ink: #e9edf4;
+  --v-muted: #a8b1bd;
+  --v-faint: #77808d;
+  --v-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 16px 48px -16px rgb(0 0 0 / 0.65);
+  --v-glow: 1;
+  color-scheme: dark;
+}
+
+/* Accent palettes — set on <html data-accent="…"> */
+[data-accent="blue"] { --v-accent: #4da3ff; }
+[data-accent="cyan"] { --v-accent: #2bd4e8; }
+[data-accent="violet"] { --v-accent: #9480ff; }
+[data-accent="green"] { --v-accent: #3fd699; }
+[data-accent="amber"] { --v-accent: #f6b954; }
+[data-accent="rose"] { --v-accent: #f4788f; }
+
+:root {
+  --v-accent-soft: color-mix(in srgb, var(--v-accent) 15%, transparent);
+  --v-accent-strong: color-mix(in oklab, var(--v-accent) 82%, white);
+  --v-accent-ink: #0a1016;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+
+  --color-bg: var(--v-bg);
+  --color-surface: var(--v-surface);
+  --color-raised: var(--v-raised);
+  --color-line: var(--v-line);
+  --color-line-strong: var(--v-line-strong);
+  --color-ink: var(--v-ink);
+  --color-muted: var(--v-muted);
+  --color-faint: var(--v-faint);
+  --color-accent: var(--v-accent);
+  --color-accent-strong: var(--v-accent-strong);
+  --color-accent-soft: var(--v-accent-soft);
+  --color-on-accent: var(--v-accent-ink);
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--v-line);
+  }
+
+  html {
+    background-color: var(--v-bg);
+  }
+
+  body {
+    color: var(--v-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--v-accent) 28%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--v-accent);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--v-line-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--v-line-strong);
+    border: 3px solid var(--v-bg);
+  }
+
+  /* Ambient accent glow — painted above the canvas, below all content */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(52rem 26rem at 50% -8rem, var(--v-accent-soft), transparent 65%),
+      radial-gradient(42rem 30rem at 100% 108%, color-mix(in srgb, var(--v-accent) 7%, transparent), transparent 70%);
+    opacity: var(--v-glow);
+  }
+}
+
+/* ---------- Components ---------- */
+@layer components {
+  .panel {
+    background-color: var(--v-surface);
+    border: 1px solid var(--v-line);
+    border-radius: 1rem;
+    box-shadow: var(--v-shadow);
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  }
+
+  .glass {
+    background-color: color-mix(in srgb, var(--v-bg) 78%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 1.75rem;
+    padding-inline: 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--v-line);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--v-muted);
+    background: color-mix(in srgb, var(--v-surface) 65%, transparent);
+    white-space: nowrap;
+  }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    height: 1.15rem;
+    padding-inline: 0.35rem;
+    border-radius: 0.35rem;
+    border: 1px solid var(--v-line-strong);
+    border-bottom-width: 2px;
+    background: var(--v-raised);
+    color: var(--v-faint);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+  }
+
+  .input {
+    height: 2.5rem;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--v-line-strong);
+    background: var(--v-raised);
+    padding-inline: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--v-ink);
+    transition: border-color 150ms ease;
+  }
+
+  .input::placeholder {
+    color: var(--v-faint);
+  }
+
+  .input:focus {
+    border-color: color-mix(in srgb, var(--v-accent) 55%, var(--v-line-strong));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--v-accent) 15%, transparent);
+  }
+
+  .search-glow:focus-within {
+    border-color: color-mix(in srgb, var(--v-accent) 45%, var(--v-line));
+    box-shadow: var(--v-shadow), 0 0 0 3px color-mix(in srgb, var(--v-accent) 12%, transparent);
+  }
+
+  /* Favorite tiles */
+  .tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, hsl(var(--tile-h, 215) 85% 60%) 15%, transparent);
+    border: 1px solid color-mix(in srgb, hsl(var(--tile-h, 215) 85% 60%) 24%, transparent);
+    color: hsl(var(--tile-h, 215) 85% 68%);
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .tile-emoji {
+    background: var(--v-raised);
+    border-color: var(--v-line);
+    color: var(--v-ink);
+    font-size: 1.5rem;
+  }
+
+  [data-theme="light"] .tile {
+    color: hsl(var(--tile-h, 215) 60% 42%);
+    background: color-mix(in srgb, hsl(var(--tile-h, 215) 85% 55%) 10%, transparent);
+  }
+
+  .tile-h-0 { --tile-h: 215; }
+  .tile-h-1 { --tile-h: 172; }
+  .tile-h-2 { --tile-h: 265; }
+  .tile-h-3 { --tile-h: 32; }
+  .tile-h-4 { --tile-h: 330; }
+  .tile-h-5 { --tile-h: 45; }
+  .tile-h-6 { --tile-h: 295; }
+  .tile-h-7 { --tile-h: 195; }
+
+  /* Card overflow menu visibility */
+  .fav-menu {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .group:hover .fav-menu,
+  .group:focus-within .fav-menu,
+  .fav-menu:focus-visible {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .fav-menu {
+      opacity: 1;
+    }
+  }
+
+  /* Hide keyboard hints on touch devices */
+  @media (hover: none) {
+    .kbd-hint {
+      display: none;
+    }
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Electron custom titlebar drag regions */
+  .win-drag {
+    -webkit-app-region: drag;
+    -webkit-user-select: none;
+  }
+
+  .win-nodrag {
+    -webkit-app-region: no-drag;
+  }
+
+  .win-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 100%;
+    color: var(--v-muted);
+    transition: background-color 100ms ease, color 100ms ease;
+  }
+
+  .win-btn:hover {
+    background: color-mix(in srgb, var(--v-ink) 6%, transparent);
+    color: var(--v-ink);
+  }
+
+  .win-btn-close:hover {
+    background: #e81123;
+    color: #fff;
+  }
+
+  .win-btn:active {
+    background: color-mix(in srgb, var(--v-ink) 12%, transparent);
+  }
+
+  .win-btn-close:active {
+    background: #c50e1f;
+  }
+
+  [data-theme="light"] .win-btn:hover {
+    background: rgb(15 23 42 / 0.06);
+  }
+
+  [data-theme="light"] .win-btn:active {
+    background: rgb(15 23 42 / 0.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
