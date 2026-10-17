@@ -105,6 +105,18 @@
     object-fit: contain;
   }
 
+  @keyframes tab-spin { to { transform: rotate(360deg); } }
+  .tab.loading .tile::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #4da3ff;
+    animation: tab-spin 650ms linear infinite;
+    z-index: 2;
+  }
+
   .label {
     flex: 1 1 auto;
     min-width: 0;
@@ -171,7 +183,11 @@
       const el = document.createElement('div')
       const isNew = !seen.has(t.id)
       seen.add(t.id)
-      el.className = 'tab' + (t.active ? ' active' : '') + (isNew && !t.home ? ' entering' : '')
+      el.className =
+        'tab' +
+        (t.active ? ' active' : '') +
+        (t.loading ? ' loading' : '') +
+        (isNew && !t.home ? ' entering' : '')
       el.dataset.id = t.id
       el.title = t.home ? 'Velora — dashboard' : (t.title || '')
 

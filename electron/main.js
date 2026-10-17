@@ -110,29 +110,28 @@ function layout() {
   }
 }
 
-/** Zen-style hover expansion: drive the sidebar width with an eased animation. */
+/** Zen-style hover expansion: time-based eased animation (immune to timer jitter). */
 function animateSidebar(expanded) {
   const target = expanded ? SIDEBAR_W_EXPANDED : SIDEBAR_W
   if (sidebarWidth === target) return
   if (sidebarAnim) clearInterval(sidebarAnim)
   const from = sidebarWidth
-  const steps = 10
-  const interval = 18
-  let step = 0
+  const duration = 200
+  const start = Date.now()
   sidebarAnim = setInterval(() => {
-    step += 1
-    const t = Math.min(1, step / steps)
+    const t = Math.min(1, (Date.now() - start) / duration)
     const eased = 1 - Math.pow(1 - t, 3)
     sidebarWidth = Math.round(from + (target - from) * eased)
     layout()
-    // Home is the base view — tell the React app how much room the sidebar takes.
+    // Home is the base view — keep its padding in lock-step with the bounds.
     win?.webContents.send('chrome:layout', { sidebarWidth })
-    if (step >= steps) {
+    if (t >= 1) {
       clearInterval(sidebarAnim)
       sidebarAnim = null
       sidebarWidth = target
+      layout()
     }
-  }, interval)
+  }, 8)
 }
 
 function broadcastTabs() {
@@ -146,6 +145,7 @@ function broadcastTabs() {
       title: t.title || host,
       url: t.url,
       active: activeTab === id,
+      loading: !!t.loading,
       favicon: showIcons && host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : null,
     })
   }
@@ -219,7 +219,7 @@ function createTab(url, focus = true) {
       nodeIntegration: false,
     },
   })
-  const entry = { view, url, title: hostOf(url) }
+  const entry = { view, url, title: hostOf(url), loading: true }
   tabViews.set(id, entry)
 
   // Keep chrome views always on top: tab views go below them.
@@ -245,7 +245,15 @@ function createTab(url, focus = true) {
     pushNavState()
   })
   view.webContents.on('did-finish-load', () => {
+    entry.loading = false
+    broadcastTabs()
     requestAutologin(id, view.webContents.getURL())
+  })
+  view.webContents.on('did-fail-load', (_e, _code, _desc, _url, isMainFrame) => {
+    if (isMainFrame) {
+      entry.loading = false
+      broadcastTabs()
+    }
   })
   bindShortcuts(view.webContents)
 

@@ -1,5 +1,5 @@
 export const APP_NAME = 'Velora'
-export const APP_VERSION = '1.6.0'
+export const APP_VERSION = '1.6.1'
 export const STORAGE_KEY = 'velora:v1'
 export const STORE_VERSION = 1
 export const MAX_FAVORITES = 200

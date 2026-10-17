@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { MotionConfig, motion } from 'motion/react'
 import { ToastProvider } from '@/components/ui/Toast'
 import { StoreProvider, useStore } from '@/lib/store'
@@ -8,11 +8,53 @@ import { AutoLoginBridge } from '@/components/AutoLoginBridge'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { Dashboard } from '@/features/dashboard/Dashboard'
-import { InspectorView } from '@/features/privacy/InspectorView'
-import { ToolsView } from '@/features/privacy/ToolsView'
-import { VaultView } from '@/features/vault/VaultView'
-import { HistoryView } from '@/features/history/HistoryView'
-import { SettingsContent } from '@/features/settings/SettingsContent'
+
+// Secondary views are code-split: the dashboard paints with a much smaller
+// bundle, and the chunks are prefetched on idle so navigation stays instant.
+const InspectorView = lazy(() =>
+  import('@/features/privacy/InspectorView').then((m) => ({ default: m.InspectorView })),
+)
+const ToolsView = lazy(() =>
+  import('@/features/privacy/ToolsView').then((m) => ({ default: m.ToolsView })),
+)
+const VaultView = lazy(() => import('@/features/vault/VaultView').then((m) => ({ default: m.VaultView })))
+const HistoryView = lazy(() =>
+  import('@/features/history/HistoryView').then((m) => ({ default: m.HistoryView })),
+)
+const SettingsContent = lazy(() =>
+  import('@/features/settings/SettingsContent').then((m) => ({ default: m.SettingsContent })),
+)
+
+/** Warm the lazily-loaded chunks once the browser is idle. */
+function PrefetchViews() {
+  useEffect(() => {
+    const idle: (cb: () => void) => number =
+      typeof window.requestIdleCallback === 'function'
+        ? (cb) => window.requestIdleCallback(() => cb(), { timeout: 2500 })
+        : (cb) => window.setTimeout(cb, 1200) as unknown as number
+    const id = idle(() => {
+      void import('@/features/privacy/InspectorView')
+      void import('@/features/privacy/ToolsView')
+      void import('@/features/vault/VaultView')
+      void import('@/features/history/HistoryView')
+      void import('@/features/settings/SettingsContent')
+    })
+    return () => {
+      if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(id as number)
+      else clearTimeout(id as unknown as number)
+    }
+  }, [])
+  return null
+}
+
+/** Small centered spinner used while a lazily-loaded view resolves. */
+function ViewLoader() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-label="Loading">
+      <span className="size-5 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
+    </div>
+  )
+}
 
 export type View = 'dashboard' | 'inspect' | 'tools' | 'vault' | 'history'
 
@@ -116,21 +158,25 @@ function AppShell() {
       {isElectron && <div aria-hidden="true" className="h-9 w-full shrink-0" />}
       <Header view={view} onOpenSettings={() => setSettingsOpen(true)} />
       <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 sm:px-6">
-        <motion.div
-          key={view}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-        >
-          {view === 'dashboard' && <Dashboard />}
-          {view === 'inspect' && <InspectorView />}
-          {view === 'tools' && <ToolsView />}
-          {view === 'vault' && <VaultView />}
-          {view === 'history' && <HistoryView />}
-        </motion.div>
+        <Suspense fallback={<ViewLoader />}>
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.17, ease: [0.32, 0.72, 0, 1] }}
+          >
+            {view === 'dashboard' && <Dashboard />}
+            {view === 'inspect' && <InspectorView />}
+            {view === 'tools' && <ToolsView />}
+            {view === 'vault' && <VaultView />}
+            {view === 'history' && <HistoryView />}
+          </motion.div>
+        </Suspense>
       </main>
       <Footer />
-      <SettingsContent open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <Suspense fallback={null}>
+        <SettingsContent open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      </Suspense>
     </div>
   )
 }
@@ -141,6 +187,7 @@ export default function App() {
       <ToastProvider>
         <StoreProvider>
           <AutoLoginBridge />
+          <PrefetchViews />
           <AppShell />
         </StoreProvider>
       </ToastProvider>
