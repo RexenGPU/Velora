@@ -1,5 +1,5 @@
 export const APP_NAME = 'Velora'
-export const APP_VERSION = '1.6.1'
+export const APP_VERSION = '1.7.0'
 export const STORAGE_KEY = 'velora:v1'
 export const STORE_VERSION = 1
 export const MAX_FAVORITES = 200
@@ -26,6 +26,15 @@ declare global {
       clearStore: () => void
       /** Provide decrypted credentials for auto-login on a tab (opt-in per entry). */
       sendAutologin: (tabId: string, payload: { username: string; password: string; submit: boolean }) => void
+      /** Auto-update (desktop builds). */
+      checkForUpdates: () => Promise<{ ok: boolean; reason?: string }>
+      installUpdate: () => void
+      /** Session stats for opt-in tracker blocking. */
+      getBlockingStats: () => Promise<{ total: number; enabled: boolean }>
+      /** Session download list (desktop builds). */
+      listDownloads: () => Promise<
+        { id: number; filename: string; host: string; received: number; total: number; state: string; savePath: string }[]
+      >
     }
   }
 }

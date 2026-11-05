@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseBackup, sanitizeSettings } from '@/lib/export'
+import { parseBackup, sanitizeScratchpad, sanitizeSettings } from '@/lib/export'
 import { sanitizeFavorite, sanitizeFavorites } from '@/lib/favorites'
 import type { Favorite } from '@/types'
 
@@ -143,10 +143,53 @@ describe('sanitizeSettings', () => {
     expect(patch).not.toHaveProperty('startupUrl')
   })
 
+  it('sanitizes the blocking flag and wallpaper', () => {
+    const patch = sanitizeSettings({
+      blockTrackers: true,
+      wallpaper: { kind: 'gradient', gradient: 'linear-gradient(#000,#111)' },
+    })
+    expect(patch?.blockTrackers).toBe(true)
+    expect(patch?.wallpaper).toEqual({ kind: 'gradient', gradient: 'linear-gradient(#000,#111)' })
+  })
+
+  it('drops oversized wallpaper images', () => {
+    const patch = sanitizeSettings({
+      wallpaper: { kind: 'image', image: 'data:image/jpeg;base64,' + 'x'.repeat(1_600_000) },
+    })
+    expect(patch?.wallpaper?.kind).toBe('none')
+  })
+
   it('returns null for garbage', () => {
     expect(sanitizeSettings(null)).toBeNull()
     expect(sanitizeSettings('x')).toBeNull()
     expect(sanitizeSettings({})).toBeNull()
+  })
+})
+
+describe('sanitizeScratchpad', () => {
+  it('keeps valid notes and drops empty ones', () => {
+    const notes = sanitizeScratchpad([
+      { id: 'a', text: 'hello' },
+      { id: 'b', text: '   ' },
+      'garbage',
+      { text: 'no id' },
+    ])
+    expect(notes).toHaveLength(2)
+    expect(notes![0]).toEqual({ id: 'a', text: 'hello' })
+    expect(notes![1].id).toMatch(/^[\w-]+$/)
+  })
+
+  it('caps notes and text length', () => {
+    const notes = sanitizeScratchpad(
+      Array.from({ length: 30 }, (_, i) => ({ id: `n${i}`, text: 'x'.repeat(3000) })),
+    )
+    expect(notes).toHaveLength(12)
+    expect(notes![0].text.length).toBe(2000)
+  })
+
+  it('returns null for non-arrays', () => {
+    expect(sanitizeScratchpad(null)).toBeNull()
+    expect(sanitizeScratchpad('nope')).toBeNull()
   })
 })
 

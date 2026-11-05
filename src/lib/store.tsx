@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { ClockSettings, Favorite, HistoryKind, Settings, SettingsPatch, VaultItem, VaultStore } from '@/types'
+import type { ClockSettings, Favorite, HistoryKind, Settings, SettingsPatch, StickyNote, VaultItem, VaultStore } from '@/types'
 import { loadStore, saveStore, wipeStore, type PersistedStore } from '@/lib/storage'
 import { DEFAULT_FAVORITES, newId } from '@/lib/favorites'
 import { createBackup, serializeBackup } from '@/lib/export'
@@ -22,6 +22,10 @@ export interface StoreApi {
   vault: VaultStore | null
   vaultKey: CryptoKey | null
   history: import('@/types').HistoryEntry[]
+  scratchpad: StickyNote[]
+  addNote: () => void
+  updateNote: (id: string, text: string) => void
+  removeNote: (id: string) => void
   setSettings: (patch: SettingsPatch) => void
   updateClock: (patch: Partial<ClockSettings>) => void
   addFavorite: (f: Omit<Favorite, 'id'>) => void
@@ -81,6 +85,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       vault: state.vault,
       vaultKey,
       history: state.history,
+      scratchpad: state.scratchpad,
+
+      addNote: () =>
+        setState((s) => ({
+          ...s,
+          scratchpad: [...s.scratchpad, { id: newId(), text: '' }].slice(-12),
+        })),
+
+      updateNote: (id, text) =>
+        setState((s) => ({
+          ...s,
+          scratchpad: s.scratchpad.map((n) => (n.id === id ? { ...n, text: text.slice(0, 2000) } : n)),
+        })),
+
+      removeNote: (id) =>
+        setState((s) => ({ ...s, scratchpad: s.scratchpad.filter((n) => n.id !== id) })),
 
       setSettings: (patch) =>
         setState((s) => ({

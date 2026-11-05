@@ -1,20 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bookmark,
   Clock as ClockIcon,
   Database,
   History as HistoryIcon,
+  Image as ImageIcon,
   Info,
   Monitor,
   Moon,
   Rocket,
   Search as SearchIcon,
+  ShieldCheck,
   SlidersHorizontal,
   Sun,
 } from 'lucide-react'
 import type { EngineId } from '@/types'
 import { getEngineList, validCustomEngine } from '@/lib/engines'
 import { normalizeUrlToString } from '@/lib/url'
+import { fileToWallpaperDataUrl } from '@/lib/image'
+import { isElectron } from '@/lib/app'
+import { useUpdateStatus } from '@/lib/updates'
+
+const WALLPAPER_GRADIENTS = [
+  { id: 'aurora', label: 'Aurora', css: 'linear-gradient(135deg, #16204a 0%, #0b0e14 55%, #123a3e 100%)' },
+  { id: 'ember', label: 'Ember', css: 'linear-gradient(135deg, #3a1626 0%, #0b0e14 60%, #3a2a12 100%)' },
+  { id: 'ocean', label: 'Ocean', css: 'radial-gradient(120% 100% at 20% 0%, #10305a 0%, #0b0e14 60%, #0d2e2c 100%)' },
+  { id: 'noir', label: 'Noir', css: 'linear-gradient(180deg, #1a1d24 0%, #0b0e14 100%)' },
+]
 import { useStore } from '@/lib/store'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
@@ -44,6 +56,31 @@ interface SettingsContentProps {
 
 export function SettingsContent({ open, onClose }: SettingsContentProps) {
   const { settings, setSettings, updateClock, favorites, restoreExamples, wipeAll, history, clearHistory } = useStore()
+  const update = useUpdateStatus()
+  const [blockingStats, setBlockingStats] = useState<{ total: number; enabled: boolean } | null>(null)
+  const [wallpaperBusy, setWallpaperBusy] = useState(false)
+  const wallpaperInputRef = useRef<HTMLInputElement>(null)
+
+  // Live session stats for opt-in blocking (desktop only).
+  useEffect(() => {
+    const api = window.veloraDesktop
+    if (!open || !api?.getBlockingStats) return
+    let cancelled = false
+    const refresh = async () => {
+      try {
+        const stats = await api.getBlockingStats()
+        if (!cancelled) setBlockingStats(stats)
+      } catch {
+        // ignore
+      }
+    }
+    void refresh()
+    const id = window.setInterval(() => void refresh(), 8000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [open, settings.blockTrackers])
   const { push } = useToast()
   const [confirmWipe, setConfirmWipe] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
@@ -111,6 +148,99 @@ export function SettingsContent({ open, onClose }: SettingsContentProps) {
                   { value: 'comfortable', label: 'Comfortable' },
                   { value: 'compact', label: 'Compact' },
                 ]}
+              />
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-ink">Background</p>
+                  <p className="mt-0.5 text-xs text-faint">
+                    Images are resized locally and stored with your data — never uploaded.
+                  </p>
+                </div>
+                <Segmented
+                  ariaLabel="Background"
+                  value={settings.wallpaper.kind}
+                  onChange={(kind) => {
+                    if (kind === 'gradient' && !settings.wallpaper.gradient) {
+                      setSettings({ wallpaper: { kind, gradient: WALLPAPER_GRADIENTS[0].css } })
+                    } else if (kind === 'image') {
+                      wallpaperInputRef.current?.click()
+                    } else {
+                      setSettings({ wallpaper: { kind } })
+                    }
+                  }}
+                  options={[
+                    { value: 'none', label: 'None' },
+                    { value: 'gradient', label: 'Gradient' },
+                    { value: 'image', label: 'Image' },
+                  ]}
+                />
+              </div>
+              {settings.wallpaper.kind === 'gradient' && (
+                <div className="flex items-center gap-2" role="radiogroup" aria-label="Gradient presets">
+                  {WALLPAPER_GRADIENTS.map((g) => (
+                    <button
+                      key={g.id}
+                      role="radio"
+                      aria-checked={settings.wallpaper.gradient === g.css}
+                      aria-label={g.label}
+                      title={g.label}
+                      onClick={() => setSettings({ wallpaper: { kind: 'gradient', gradient: g.css } })}
+                      className={`h-9 w-14 rounded-lg border transition-all duration-150 hover:scale-105 ${
+                        settings.wallpaper.gradient === g.css ? 'border-accent ring-1 ring-accent' : 'border-line-strong'
+                      }`}
+                      style={{ backgroundImage: g.css }}
+                    />
+                  ))}
+                </div>
+              )}
+              {settings.wallpaper.kind === 'image' && (
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-9 w-14 rounded-lg border border-line-strong bg-cover bg-center"
+                    style={{
+                      backgroundImage: settings.wallpaper.image ? `url(${settings.wallpaper.image})` : undefined,
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={wallpaperBusy}
+                    onClick={() => wallpaperInputRef.current?.click()}
+                  >
+                    <ImageIcon size={14} />
+                    {wallpaperBusy ? 'Processing…' : settings.wallpaper.image ? 'Replace' : 'Choose image'}
+                  </Button>
+                  {settings.wallpaper.image && (
+                    <Button variant="ghost" size="sm" onClick={() => setSettings({ wallpaper: { kind: 'none' } })}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              )}
+              <input
+                ref={wallpaperInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  setWallpaperBusy(true)
+                  void fileToWallpaperDataUrl(file).then((dataUrl) => {
+                    setWallpaperBusy(false)
+                    if (dataUrl) {
+                      setSettings({ wallpaper: { kind: 'image', image: dataUrl } })
+                      push('Background updated')
+                    } else {
+                      push('That image could not be used (too large or unsupported)', 'error')
+                    }
+                  })
+                }}
               />
             </div>
           </div>
@@ -327,6 +457,32 @@ export function SettingsContent({ open, onClose }: SettingsContentProps) {
           </div>
         </SettingsSection>
 
+        <SettingsSection title="Tracking protection" icon={<ShieldCheck size={13} />}>
+          <div className="flex flex-col gap-3">
+            <SettingsRow
+              label="Block known tracker requests"
+              hint="Desktop app only. Real request blocking via the same curated domain list as the inspector — off by default. Top-level navigations are never blocked, and the list is not a complete blocklist."
+              control={
+                <Toggle
+                  checked={settings.blockTrackers}
+                  onChange={(v) => {
+                    setSettings({ blockTrackers: v })
+                    push(v ? 'Tracker blocking enabled' : 'Tracker blocking disabled', 'info')
+                  }}
+                  label="Block known tracker requests"
+                />
+              }
+            />
+            {isElectron && settings.blockTrackers && (
+              <p className="text-xs text-faint">
+                Blocked in this session:{' '}
+                <span className="font-medium tabular-nums text-ink">{blockingStats?.total ?? 0}</span>
+                <span className="text-faint"> — a per-page count also appears next to the address in the top bar.</span>
+              </p>
+            )}
+          </div>
+        </SettingsSection>
+
         <SettingsSection title="Shortcuts & data" icon={<Bookmark size={13} />}>
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-4">
@@ -402,9 +558,57 @@ export function SettingsContent({ open, onClose }: SettingsContentProps) {
         <SettingsSection title="About" icon={<Info size={13} />}>
           <div className="flex flex-col gap-2.5 text-xs leading-relaxed text-faint">
             <p>
-              Velora v{APP_VERSION} — a calm, local-first start page. MIT-licensed; see the README for
-              deployment instructions.
+              Velora v{APP_VERSION} — a calm, local-first browser and start page. MIT-licensed; see
+              the README for deployment instructions.
             </p>
+            {isElectron && (
+              <div className="flex flex-col gap-2 rounded-lg border border-line bg-raised/40 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span>
+                    {update.status === 'downloaded'
+                      ? `Update${update.version ? ' v' + update.version : ''} downloaded — restart to install.`
+                      : update.status === 'downloading'
+                        ? `Downloading update… ${update.percent ?? 0}%`
+                        : update.status === 'available'
+                          ? `Update${update.version ? ' v' + update.version : ''} available — downloading…`
+                          : update.status === 'checking'
+                            ? 'Checking for updates…'
+                            : update.status === 'error'
+                              ? 'Update check failed (offline or unavailable).'
+                              : 'Updates are checked automatically via GitHub Releases.'}
+                  </span>
+                  {update.status === 'downloaded' ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => window.veloraDesktop?.installUpdate()}
+                    >
+                      Restart & install
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="shrink-0"
+                      disabled={update.status === 'checking' || update.status === 'downloading'}
+                      onClick={() => {
+                        void window.veloraDesktop?.checkForUpdates?.().then((r) => {
+                          if (r?.ok) push('Checking for updates…', 'info')
+                          else push('Update check unavailable', 'error')
+                        })
+                      }}
+                    >
+                      Check now
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-faint">
+                  Automatic updates apply to the installed version; the portable build updates by
+                  downloading a new release. Update checks contact github.com.
+                </p>
+              </div>
+            )}
             <div className="flex flex-col gap-1">
               <p className="font-medium text-muted">Keyboard shortcuts</p>
               <p>

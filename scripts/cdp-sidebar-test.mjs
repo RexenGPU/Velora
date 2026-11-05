@@ -40,7 +40,7 @@ const main = async () => {
   const T = await connect(tPage.webSocketDebuggerUrl)
 
   const t0 = Date.now()
-  while (Date.now() - t0 < 30000) {
+  while (Date.now() - t0 < 60000) {
     if (await A.evalJs(`!!document.getElementById('velora-search')`)) break
     await sleep(500)
   }
@@ -82,14 +82,33 @@ const main = async () => {
   })()`)
   pass('tab favicon present', !!favicon && favicon.includes('icons.duckduckgo.com'), favicon ?? 'none')
 
+  // Chromium on Windows pauses native view-bounds application for windows
+  // launched in the background (never foreground-activated). A minimize +
+  // restore cycle rebuilds the compositor surface — the equivalent of the
+  // user clicking the window, which is what real launches do anyway.
+  await S.evalJs(`window.veloraChrome.minimize()`)
+  await sleep(600)
+  await S.evalJs(`window.veloraChrome.restore()`)
+  await sleep(900)
+
   // 2. Content adapts (never covered): measure page width across expansion.
-  const widthCollapsed = await P.evalJs(`window.innerWidth`)
+  const measureUntil = async (expected, timeoutMs = 2500) => {
+    const started = Date.now()
+    let value = await P.evalJs(`window.innerWidth`)
+    while (Date.now() - started < timeoutMs && Math.abs(value - expected) > 3) {
+      await sleep(250)
+      value = await P.evalJs(`window.innerWidth`)
+    }
+    return value
+  }
+
+  const widthCollapsed = await measureUntil(1134)
   await S.evalJs(`window.veloraChrome.setSidebarHover(true)`)
-  await sleep(600)
-  const widthExpanded = await P.evalJs(`window.innerWidth`)
+  await sleep(400)
+  const widthExpanded = await measureUntil(970)
   await S.evalJs(`window.veloraChrome.setSidebarHover(false)`)
-  await sleep(600)
-  const widthBack = await P.evalJs(`window.innerWidth`)
+  await sleep(400)
+  const widthBack = await measureUntil(1134)
 
   const expandedDelta = widthCollapsed - widthExpanded
   pass(

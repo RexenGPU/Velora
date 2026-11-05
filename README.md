@@ -28,12 +28,17 @@ Velora is a desktop browser and web start page built around one idea: **your bro
 - **One unified top bar** — brand on the dashboard; back / forward / reload / home, a colored HTTPS indicator with the site's hostname, and "open in system browser" on external pages. Window controls always on the right.
 - **Real address bar** — type a query to search, or a web address to open it directly. Enter opens results in a **new tab**; the dashboard stays mounted underneath.
 - **Keyboard shortcuts** — `Ctrl+T` new tab · `Ctrl+W` close tab · `Ctrl+Tab` cycle tabs · `/`, `Ctrl+K`, `Ctrl+L` focus search · `Esc` close dialogs.
+- **Download manager** — downloads save to your Downloads folder automatically (deduplicated names) with live progress in the sidebar, open/reveal actions and a session-only list.
+- **Opt-in tracker blocking** — real request blocking through Chromium's webRequest, driven by the same curated reference list as the inspector. **Off by default**, top-level navigations are never blocked, and a per-page count appears in the top bar while it's on.
 - **Configurable startup** — launch on the dashboard or open any custom page in a tab.
+- **Automatic updates** — installed builds check GitHub Releases and update in place; the portable build updates by downloading a fresh release.
 - **Resilient packaging** — window icons are read from outside the asar, and first-run load failures (antivirus scans, slow disks) are retried automatically.
 
 ## The start page
 
 - **Live clock** with seconds tinted in your accent color, greeting and date — or hide it entirely.
+- **Scratchpad** — sticky notes pinned to the dashboard, stored locally with the rest of your data.
+- **Backgrounds** — a built-in gradient or your own image, resized locally and never uploaded.
 - **Search engine selection** — DuckDuckGo, Brave, Startpage, Mojeek, Google, **or your own custom engine** (any URL template with a `%s` placeholder).
 - **Quick links** — add, edit, remove, categorize and reorder shortcuts. Real site logos (DuckDuckGo icon service, toggleable) with letter-tile fallbacks. JSON import/export included.
 - **Optional history** — **off by default**. When enabled, stays local, capped at 500 entries, grouped by day, excluded from backups, clearable anytime.
@@ -61,7 +66,7 @@ Velora is a desktop browser and web start page built around one idea: **your bro
 
 - **No account, no server.** Nothing is sent to Velora — there is no Velora server.
 - **No analytics, no third-party scripts.** Fonts are self-hosted; no external APIs are called at startup.
-- **Only two things ever leave your device**: search queries (sent directly to your chosen engine — Velora does not proxy or anonymize them) and normal requests when you open links. Optional site icons additionally contact DuckDuckGo's icon service; the toggle turns it off completely.
+- **Only these things ever leave your device**: search queries (sent directly to your chosen engine — Velora does not proxy or anonymize them), normal requests when you open links, optional site icons (DuckDuckGo's icon service, toggleable), and update checks against GitHub Releases when using the installed build.
 - **Restrictive CSP** in production builds (`default-src 'none'`, same-origin scripts and fonts only).
 - **Safe rendering** — user content never injected as raw HTML; all URLs validated (http/https only).
 - localStorage is **not encrypted** — which is why the vault encrypts everything itself, and why you shouldn't store secrets outside it.

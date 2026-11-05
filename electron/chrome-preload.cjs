@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('veloraChrome', {
   minimize: () => ipcRenderer.send('win:minimize'),
   maximize: () => ipcRenderer.send('win:maximize'),
+  restore: () => ipcRenderer.send('win:restore'),
   close: () => ipcRenderer.send('win:close'),
   newTab: () => ipcRenderer.send('tab:new'),
   activateTab: (id) => ipcRenderer.send('tab:activate', id),
@@ -13,16 +14,20 @@ contextBridge.exposeInMainWorld('veloraChrome', {
   navReload: () => ipcRenderer.send('nav:reload'),
   navHome: () => ipcRenderer.send('nav:home'),
   navExternal: () => ipcRenderer.send('nav:external'),
+  openDownload: (id) => ipcRenderer.send('downloads:open', id),
+  revealDownload: (id) => ipcRenderer.send('downloads:reveal', id),
+  removeDownload: (id) => ipcRenderer.send('downloads:remove', id),
+  clearDownloads: () => ipcRenderer.send('downloads:clear'),
 })
 
-ipcRenderer.on('win:maximized', (_event, value) => {
-  window.dispatchEvent(new CustomEvent('velora:maximized', { detail: value }))
-})
+const forward = (channel, eventName) => {
+  ipcRenderer.on(channel, (_event, detail) => {
+    window.dispatchEvent(new CustomEvent(eventName, { detail }))
+  })
+}
 
-ipcRenderer.on('tabs:changed', (_event, tabs) => {
-  window.dispatchEvent(new CustomEvent('velora:tabs', { detail: tabs }))
-})
-
-ipcRenderer.on('nav:state', (_event, state) => {
-  window.dispatchEvent(new CustomEvent('velora:navstate', { detail: state }))
-})
+forward('win:maximized', 'velora:maximized')
+forward('tabs:changed', 'velora:tabs')
+forward('nav:state', 'velora:navstate')
+forward('downloads:changed', 'velora:downloads')
+forward('update:status', 'velora:update')

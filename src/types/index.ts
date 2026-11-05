@@ -4,6 +4,19 @@ export type LayoutMode = 'comfortable' | 'compact'
 export type ClockFormat = '12h' | '24h'
 export type StartupMode = 'dashboard' | 'custom'
 
+export type WallpaperKind = 'none' | 'gradient' | 'image'
+
+export interface Wallpaper {
+  kind: WallpaperKind
+  gradient?: string
+  image?: string
+}
+
+export interface StickyNote {
+  id: string
+  text: string
+}
+
 export type EngineId = 'duckduckgo' | 'brave' | 'startpage' | 'mojeek' | 'google' | 'custom'
 
 /** User-defined search engine (urlTemplate must contain a %s placeholder). */
@@ -30,6 +43,9 @@ export interface Settings {
   historyEnabled: boolean
   startupMode: StartupMode
   startupUrl?: string
+  /** Opt-in request blocking in the desktop app (off by default). */
+  blockTrackers: boolean
+  wallpaper: Wallpaper
   clock: ClockSettings
 }
 
@@ -44,6 +60,8 @@ export type SettingsPatch = {
   historyEnabled?: boolean
   startupMode?: StartupMode
   startupUrl?: string
+  blockTrackers?: boolean
+  wallpaper?: Wallpaper
   clock?: Partial<ClockSettings>
 }
 

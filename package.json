@@ -1,7 +1,7 @@
 {
   "name": "velora",
   "private": true,
-  "version": "1.6.1",
+  "version": "1.7.0",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
+    "electron-updater": "^6.8.11",
     "lucide-react": "^1.55.0",
     "motion": "^14.1.0",
     "react": "^19.3.0",
@@ -41,19 +42,40 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "shared/**/*",
       "build/icon.ico",
       "build/icon.png"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "RexenGPU",
+        "repo": "velora"
+      }
+    ],
     "extraResources": [
-      { "from": "build/icon.ico", "to": "icon.ico" }
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
     ],
     "directories": {
       "output": "release"
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico"
     },

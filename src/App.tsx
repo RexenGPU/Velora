@@ -1,6 +1,7 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { MotionConfig, motion } from 'motion/react'
-import { ToastProvider } from '@/components/ui/Toast'
+import { ToastProvider, useToast } from '@/components/ui/Toast'
+import { useUpdateStatus } from '@/lib/updates'
 import { StoreProvider, useStore } from '@/lib/store'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { isElectron } from '@/lib/app'
@@ -70,8 +71,22 @@ function AppShell() {
   const [view, setView] = useState<View>(viewFromHash)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { settings } = useStore()
+  const { push } = useToast()
+  const update = useUpdateStatus()
+  const lastUpdateRef = useRef<string>('')
   const systemDark = useMediaQuery('(prefers-color-scheme: dark)')
   const resolved = settings.theme === 'system' ? (systemDark ? 'dark' : 'light') : settings.theme
+
+  // Toast once when a downloaded update is ready.
+  useEffect(() => {
+    if (update.status === 'downloaded' && lastUpdateRef.current !== 'downloaded') {
+      push(
+        `Update ${update.version ? 'v' + update.version : ''} ready — install it from Settings › About`,
+        'info',
+      )
+    }
+    lastUpdateRef.current = update.status
+  }, [update, push])
 
   useEffect(() => {
     const onHash = () => setView(viewFromHash())
@@ -148,6 +163,20 @@ function AppShell() {
       className="flex min-h-dvh flex-col"
       style={isElectron ? { paddingLeft: 'var(--v-sidebar, 46px)' } : undefined}
     >
+      {settings.wallpaper.kind !== 'none' && (
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0" style={{ zIndex: -2 }}>
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage:
+                settings.wallpaper.kind === 'image' && settings.wallpaper.image
+                  ? `url(${settings.wallpaper.image})`
+                  : (settings.wallpaper.gradient ?? 'linear-gradient(135deg, #16204a 0%, #0b0e14 55%, #123a3e 100%)'),
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg/70 via-bg/90 to-bg" />
+        </div>
+      )}
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[80] focus:rounded-lg focus:bg-accent focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-on-accent"

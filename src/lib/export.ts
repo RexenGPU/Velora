@@ -1,6 +1,6 @@
-import type { ClockSettings, Favorite, Settings, SettingsPatch } from '@/types'
+import type { ClockSettings, Favorite, Settings, SettingsPatch, StickyNote } from '@/types'
 import { MAX_BACKUP_BYTES } from '@/lib/app'
-import { sanitizeFavorites } from '@/lib/favorites'
+import { newId, sanitizeFavorites } from '@/lib/favorites'
 import { SEARCH_ENGINES, validCustomEngine } from '@/lib/engines'
 import { normalizeUrlToString } from '@/lib/url'
 
@@ -60,6 +60,22 @@ export function sanitizeSettings(raw: unknown): SettingsPatch | null {
   if (typeof r.searchInNewTab === 'boolean') out.searchInNewTab = r.searchInNewTab
   if (typeof r.showSiteIcons === 'boolean') out.showSiteIcons = r.showSiteIcons
   if (typeof r.historyEnabled === 'boolean') out.historyEnabled = r.historyEnabled
+  if (typeof r.blockTrackers === 'boolean') out.blockTrackers = r.blockTrackers
+
+  if (r.wallpaper && typeof r.wallpaper === 'object') {
+    const w = r.wallpaper as Record<string, unknown>
+    const kind: Settings['wallpaper']['kind'] =
+      w.kind === 'gradient' ? 'gradient' : w.kind === 'image' ? 'image' : 'none'
+    const wallpaper: Settings['wallpaper'] = { kind }
+    if (kind === 'gradient' && typeof w.gradient === 'string' && w.gradient.length < 400) {
+      wallpaper.gradient = w.gradient
+    }
+    if (kind === 'image' && typeof w.image === 'string' && w.image.startsWith('data:image/')) {
+      if (w.image.length < 1_500_000) wallpaper.image = w.image
+      else wallpaper.kind = 'none'
+    }
+    out.wallpaper = wallpaper
+  }
 
   if (r.clock && typeof r.clock === 'object') {
     const c = r.clock as Record<string, unknown>
@@ -72,6 +88,21 @@ export function sanitizeSettings(raw: unknown): SettingsPatch | null {
   }
 
   return Object.keys(out).length ? out : null
+}
+
+/** Validate sticky notes from storage or imports (max 12 notes, 2000 chars each). */
+export function sanitizeScratchpad(raw: unknown): StickyNote[] | null {
+  if (!Array.isArray(raw)) return null
+  const out: StickyNote[] = []
+  for (const item of raw.slice(0, 12)) {
+    if (!item || typeof item !== 'object') continue
+    const r = item as Record<string, unknown>
+    const text = typeof r.text === 'string' ? r.text.slice(0, 2000) : ''
+    if (!text.trim()) continue
+    const id = typeof r.id === 'string' && /^[\w-]{1,64}$/.test(r.id) ? r.id : newId()
+    out.push({ id, text })
+  }
+  return out
 }
 
 export function sanitizeChecklist(raw: unknown): Record<string, boolean> | null {

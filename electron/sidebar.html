@@ -26,7 +26,7 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    margin: 7px auto 9px;
+    margin: 8px auto;
     border: 0;
     border-radius: 10px;
     background: transparent;
@@ -38,6 +38,7 @@
   #newtab:hover { background: rgba(255, 255, 255, 0.06); color: #e9edf4; transform: rotate(90deg); }
   #newtab svg { width: 14px; height: 14px; }
 
+  /* ---------- Tabs ---------- */
   #list {
     flex: 1;
     display: flex;
@@ -68,7 +69,6 @@
     overflow: hidden;
     transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease;
   }
-  .tab:focus-visible { outline: 2px solid #4da3ff; outline-offset: -2px; }
   .tab:hover { background: rgba(255, 255, 255, 0.05); color: #e9edf4; }
   .tab.active {
     background: rgba(77, 163, 255, 0.12);
@@ -149,6 +149,65 @@
   .close:hover { background: rgba(255, 255, 255, 0.12); color: #e9edf4; }
   .close svg { width: 8px; height: 8px; }
   body:not(.expanded) .close { max-width: 0; opacity: 0; padding: 0; }
+
+  /* ---------- Downloads ---------- */
+  #downloads {
+    flex: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 6px 5px;
+    max-height: 40%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .hidden { display: none !important; }
+  .dl-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 4px 4px 6px; color: #77808d;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .dl-head button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border: 0; border-radius: 5px;
+    background: transparent; color: #77808d; cursor: default;
+  }
+  .dl-head button:hover { background: rgba(255, 255, 255, 0.08); color: #e9edf4; }
+  .dl-head svg { width: 10px; height: 10px; }
+  #dl-list { overflow-y: auto; min-height: 0; scrollbar-width: none; display: flex; flex-direction: column; gap: 2px; }
+  #dl-list::-webkit-scrollbar { display: none; }
+
+  .dl {
+    position: relative;
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 6px 7px; border-radius: 8px; overflow: hidden;
+    cursor: default;
+    transition: background-color 120ms ease;
+  }
+  .dl:hover { background: rgba(255, 255, 255, 0.05); }
+  .dl-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .dl-row .label { font-size: 11px; color: #e9edf4; }
+  .dl-actions { display: flex; gap: 2px; flex: none; max-width: 44px; transition: opacity 120ms ease, max-width 180ms cubic-bezier(0.32, 0.72, 0, 1); opacity: 1; }
+  body:not(.expanded) .dl-actions { max-width: 0; opacity: 0; }
+  .dl-actions button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 19px; height: 19px; border: 0; border-radius: 5px;
+    background: transparent; color: #77808d; cursor: default;
+  }
+  .dl-actions button:hover { background: rgba(255, 255, 255, 0.1); color: #e9edf4; }
+  .dl-actions svg { width: 10px; height: 10px; }
+  .dl-bar {
+    height: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden;
+  }
+  .dl-bar i { display: block; height: 100%; background: linear-gradient(90deg, #4da3ff, #2bd4e8); border-radius: 999px; transition: width 200ms ease; }
+  .dl-state { font-size: 10px; color: #77808d; }
+  .dl-state.ok { color: #3fd699; }
+  .dl-state.bad { color: #f4788f; }
+  .dl-icon { width: 16px; height: 16px; flex: none; color: #77808d; display: flex; align-items: center; justify-content: center; }
+  .dl-icon svg { width: 13px; height: 13px; }
+  .dl-icon.ok { color: #3fd699; }
+  .dl-icon.bad { color: #f4788f; }
+  @keyframes dl-spin { to { transform: rotate(360deg); } }
+  .dl-icon.busy svg { animation: dl-spin 900ms linear infinite; }
 </style>
 </head>
 <body>
@@ -156,12 +215,27 @@
     <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
   </button>
   <div id="list"></div>
+  <div id="downloads" class="hidden">
+    <div class="dl-head">
+      <span>Downloads</span>
+      <button id="dl-clear" title="Clear finished" aria-label="Clear finished downloads">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6.5 4V2.8h3V4M5 4l.6 9h4.8L11 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div id="dl-list"></div>
+  </div>
 <script>
   const api = window.veloraChrome
   const list = document.getElementById('list')
+  const dlBox = document.getElementById('downloads')
+  const dlList = document.getElementById('dl-list')
   const seen = new Set()
 
   const CLOSE_SVG = '<svg viewBox="0 0 10 10" fill="none"><path d="M0.5 0.5 9.5 9.5M9.5 0.5 0.5 9.5" stroke="currentColor" stroke-width="1.4"/></svg>'
+  const DOWNLOAD_SVG = '<svg viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3.5 13h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  const CHECK_SVG = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  const ALERT_SVG = '<svg viewBox="0 0 16 16" fill="none"><path d="M8 2.5 14.5 13.5h-13z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.5v3M8 11.6v.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+  const FOLDER_SVG = '<svg viewBox="0 0 16 16" fill="none"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.2 1.5h5.2A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>'
 
   function hueFor(text) {
     let hash = 0
@@ -177,7 +251,9 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;' })[c])
   }
 
-  function render(tabs) {
+  /* ---------- tabs ---------- */
+
+  function renderTabs(tabs) {
     list.innerHTML = ''
     for (const t of tabs) {
       const el = document.createElement('div')
@@ -223,9 +299,78 @@
     if (active) active.scrollIntoView({ block: 'nearest' })
   }
 
-  document.getElementById('newtab').addEventListener('click', () => api.newTab())
+  /* ---------- downloads ---------- */
 
-  window.addEventListener('velora:tabs', (e) => render(e.detail))
+  function fmtBytes(n) {
+    if (!n || n < 0) return ''
+    if (n < 1024) return n + ' B'
+    if (n < 1048576) return (n / 1024).toFixed(0) + ' KB'
+    if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB'
+    return (n / 1073741824).toFixed(2) + ' GB'
+  }
+
+  function renderDownloads(items) {
+    if (!items || !items.length) {
+      dlBox.classList.add('hidden')
+      return
+    }
+    dlBox.classList.remove('hidden')
+    dlList.innerHTML = ''
+    for (const d of items) {
+      const el = document.createElement('div')
+      el.className = 'dl'
+      el.title = d.filename
+      const done = d.state === 'completed'
+      const bad = d.state === 'cancelled' || d.state === 'interrupted'
+      const pct = d.total > 0 ? Math.min(100, Math.round((d.received / d.total) * 100)) : null
+      const icon = done ? CHECK_SVG : bad ? ALERT_SVG : DOWNLOAD_SVG
+      const iconCls = done ? 'ok' : bad ? 'bad' : 'busy'
+      const stateText = done
+        ? fmtBytes(d.total) || 'Done'
+        : bad
+          ? 'Failed'
+          : pct !== null
+            ? pct + '% of ' + fmtBytes(d.total)
+            : fmtBytes(d.received) + ' downloaded'
+      el.innerHTML =
+        '<div class="dl-row">' +
+        '<span class="dl-icon ' + iconCls + '">' + icon + '</span>' +
+        '<span class="label">' + escapeHtml(d.filename) + '</span>' +
+        '<span class="dl-actions">' +
+        (done ? '<button data-act="open" title="Open" aria-label="Open">' + '<svg viewBox="0 0 16 16" fill="none"><path d="M6 3H3v10h10v-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 3h4v4M13 3 7.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' + '</button>' : '') +
+        '<button data-act="reveal" title="Show in folder" aria-label="Show in folder">' + FOLDER_SVG + '</button>' +
+        '<button data-act="remove" title="' + (done ? 'Remove from list' : 'Cancel') + '" aria-label="Remove">' + CLOSE_SVG + '</button>' +
+        '</span>' +
+        '</div>' +
+        (!done && !bad ? '<div class="dl-bar"><i style="width:' + (pct ?? 8) + '%"></i></div>' : '') +
+        '<span class="dl-state' + (done ? ' ok' : bad ? ' bad' : '') + '">' + stateText + '</span>'
+
+      el.querySelectorAll('button[data-act]').forEach((b) => {
+        b.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const act = b.dataset.act
+          if (act === 'open') api.openDownload(d.id)
+          else if (act === 'reveal') api.revealDownload(d.id)
+          else api.removeDownload(d.id)
+        })
+      })
+      el.addEventListener('click', () => {
+        if (done) api.openDownload(d.id)
+      })
+      dlList.appendChild(el)
+    }
+  }
+
+  document.getElementById('newtab').addEventListener('click', () => api.newTab())
+  document.getElementById('dl-clear').addEventListener('click', () => api.clearDownloads())
+
+  window.addEventListener('velora:tabs', (e) => {
+    const payload = e.detail
+    if (Array.isArray(payload)) renderTabs(payload)
+    else if (payload && Array.isArray(payload.tabs)) renderTabs(payload.tabs)
+  })
+
+  window.addEventListener('velora:downloads', (e) => renderDownloads(e.detail))
 
   // Hover expansion — CSS animates labels here, main animates the view bounds.
   const setExpanded = (v) => {

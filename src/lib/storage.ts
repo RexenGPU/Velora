@@ -1,8 +1,8 @@
-import type { Favorite, Settings, VaultStore } from '@/types'
+import type { Favorite, Settings, StickyNote, VaultStore } from '@/types'
 import type { HistoryEntry } from '@/types'
 import { STORAGE_KEY, STORE_VERSION } from '@/lib/app'
 import { DEFAULT_FAVORITES, sanitizeFavorites } from '@/lib/favorites'
-import { sanitizeChecklist, sanitizeSettings } from '@/lib/export'
+import { sanitizeChecklist, sanitizeScratchpad, sanitizeSettings } from '@/lib/export'
 import { sanitizeHistory } from '@/lib/history'
 
 export interface PersistedStore {
@@ -15,6 +15,8 @@ export interface PersistedStore {
   vault: VaultStore | null
   /** Opt-in local history; entries only exist while historyEnabled is true. */
   history: HistoryEntry[]
+  /** Local sticky notes shown on the dashboard. */
+  scratchpad: StickyNote[]
 }
 
 export function defaultSettings(): Settings {
@@ -33,6 +35,8 @@ export function defaultSettings(): Settings {
     showSiteIcons: true,
     historyEnabled: false,
     startupMode: 'dashboard',
+    blockTrackers: false,
+    wallpaper: { kind: 'none' },
     clock: {
       visible: true,
       format: hour12 ? '12h' : '24h',
@@ -51,6 +55,7 @@ export function freshStore(): PersistedStore {
     demo: true,
     vault: null,
     history: [],
+    scratchpad: [],
   }
 }
 
@@ -134,8 +139,9 @@ function parseStored(raw: string | null): PersistedStore | null {
         : false
     const vault = sanitizeVault((data as Record<string, unknown>).vault)
     const history = sanitizeHistory((data as Record<string, unknown>).history)
+    const scratchpad = sanitizeScratchpad((data as Record<string, unknown>).scratchpad) ?? []
 
-    return { version: STORE_VERSION, settings, favorites, checklist, demo, vault, history }
+    return { version: STORE_VERSION, settings, favorites, checklist, demo, vault, history, scratchpad }
   } catch {
     return null
   }

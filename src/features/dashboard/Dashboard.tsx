@@ -3,6 +3,7 @@ import { Logo } from '@/components/Logo'
 import { Clock } from '@/features/dashboard/Clock'
 import { SearchBar } from '@/features/search/SearchBar'
 import { FavoritesSection } from '@/features/favorites/FavoritesSection'
+import { ScratchpadSection } from '@/features/dashboard/ScratchpadSection'
 import { PrivacyOverview } from '@/features/dashboard/PrivacyOverview'
 import { LocalDataPanel } from '@/features/dashboard/LocalDataPanel'
 
@@ -29,6 +30,7 @@ export function Dashboard() {
         <SearchBar />
       </div>
       <FavoritesSection />
+      <ScratchpadSection />
       <div className="grid w-full gap-4 md:grid-cols-2">
         <PrivacyOverview />
         <LocalDataPanel />

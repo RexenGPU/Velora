@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, WebContentsView } from 'electron'
+import { app, BrowserWindow, ipcMain, session, shell, WebContentsView } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,19 +33,61 @@ let tabSeq = 0
 let activeTab = 'home'
 let sidebarWidth = SIDEBAR_W
 let sidebarAnim = null
-/** id -> { view, url, title } */
+/** id -> { view, url, title, loading, spaceId, blocked, wcId } */
 const tabViews = new Map()
+/** webContents id -> tab id (for request counting) */
+const wcToTab = new Map()
+
+/* Opt-in request blocking */
+let blockTrackers = false
+let blockTotal = 0
+let trackerDomains = []
+
+/* Downloads (session-only, never persisted) */
+const downloads = []
+const downloadItems = new Map()
+let downloadSeq = 0
+let lastDownloadBroadcast = 0
+
+/* Auto-update */
+let updater = null
 
 /* ---------- helpers ---------- */
 
+function readStoreFile() {
+  try {
+    return fs.readFileSync(storePath, 'utf8').replace(/^\uFEFF/, '')
+  } catch {
+    return null
+  }
+}
+
 function readStoreSettings() {
   try {
-    const raw = fs.readFileSync(storePath, 'utf8').replace(/^\uFEFF/, '')
-    const d = JSON.parse(raw)
+    const raw = readStoreFile()
+    const d = raw ? JSON.parse(raw) : null
     return d?.settings ?? {}
   } catch {
     return {}
   }
+}
+
+function loadTrackerDomains() {
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, '..', 'shared', 'trackers.json'), 'utf8')
+    const list = JSON.parse(raw)
+    trackerDomains = Array.isArray(list) ? list.map((t) => String(t.domain)).filter(Boolean) : []
+  } catch {
+    trackerDomains = []
+  }
+}
+
+function isTrackerHost(host) {
+  const h = host.toLowerCase()
+  for (const domain of trackerDomains) {
+    if (h === domain || h.endsWith('.' + domain)) return true
+  }
+  return false
 }
 
 function engineHomeUrl() {
@@ -81,6 +123,182 @@ function hostOf(url) {
   }
 }
 
+/* ---------- settings reconciliation (opt-in blocking) ---------- */
+
+function applyStoreSettings(json) {
+  let s = {}
+  try {
+    s = JSON.parse(String(json).replace(/^\uFEFF/, ''))?.settings ?? {}
+  } catch {
+    return
+  }
+  blockTrackers = s.blockTrackers === true
+}
+
+/* ---------- opt-in request blocking ---------- */
+
+function setupBlocking() {
+  loadTrackerDomains()
+  const blockTypes = new Set(['script', 'image', 'xhr', 'subFrame', 'media', 'stylesheet', 'font', 'ping', 'other', 'cspReport'])
+  session.defaultSession.webRequest.onBeforeRequest(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      if (!blockTrackers || details.resourceType === 'mainFrame' || !blockTypes.has(details.resourceType)) {
+        callback({})
+        return
+      }
+      const host = hostOf(details.url)
+      if (host && isTrackerHost(host)) {
+        blockTotal += 1
+        const tabId = wcToTab.get(details.webContentsId)
+        const tab = tabId !== undefined ? tabViews.get(tabId) : null
+        if (tab) {
+          tab.blocked = (tab.blocked ?? 0) + 1
+          scheduleNavState()
+        }
+        callback({ cancel: true })
+        return
+      }
+      callback({})
+    },
+  )
+}
+
+let navStateTimer = null
+function scheduleNavState() {
+  if (navStateTimer) return
+  navStateTimer = setTimeout(() => {
+    navStateTimer = null
+    pushNavState()
+  }, 250)
+}
+
+/* ---------- downloads ---------- */
+
+function safeFilename(name) {
+  const base = String(name || 'download').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim()
+  return (base || 'download').slice(0, 180)
+}
+
+function uniquePath(dir, filename) {
+  let candidate = path.join(dir, filename)
+  if (!fs.existsSync(candidate)) return candidate
+  const ext = path.extname(filename)
+  const base = filename.slice(0, filename.length - ext.length)
+  for (let i = 1; i < 1000; i++) {
+    candidate = path.join(dir, `${base} (${i})${ext}`)
+    if (!fs.existsSync(candidate)) return candidate
+  }
+  return path.join(dir, `${base}-${Date.now()}${ext}`)
+}
+
+function setupDownloads() {
+  session.defaultSession.on('will-download', (_event, item) => {
+    const filename = safeFilename(item.getFilename())
+    const savePath = uniquePath(app.getPath('downloads'), filename)
+    item.setSavePath(savePath)
+
+    const id = ++downloadSeq
+    const entry = {
+      id,
+      filename,
+      host: hostOf(item.getURL()),
+      total: item.getTotalBytes(),
+      received: 0,
+      state: 'progressing',
+      savePath,
+      startedAt: Date.now(),
+    }
+    downloads.unshift(entry)
+    if (downloads.length > 60) downloads.length = 60
+    downloadItems.set(id, item)
+
+    item.on('updated', () => {
+      entry.received = item.getReceivedBytes()
+      entry.total = item.getTotalBytes()
+      broadcastDownloads(false)
+    })
+    item.on('done', (_e, state) => {
+      entry.state = state
+      entry.received = item.getReceivedBytes()
+      entry.total = item.getTotalBytes()
+      downloadItems.delete(id)
+      broadcastDownloads(true)
+    })
+
+    broadcastDownloads(true)
+  })
+}
+
+function cleanedDownloads() {
+  return downloads.map((d) => ({
+    id: d.id,
+    filename: d.filename,
+    host: d.host,
+    received: d.received,
+    total: d.total,
+    state: d.state,
+  }))
+}
+
+function broadcastDownloads(force) {
+  if (!sidebarView) return
+  const now = Date.now()
+  if (!force && now - lastDownloadBroadcast < 250) return
+  lastDownloadBroadcast = now
+  sidebarView.webContents.send('downloads:changed', cleanedDownloads())
+}
+
+/* ---------- auto-update ---------- */
+
+async function setupUpdater() {
+  if (!app.isPackaged) return
+  try {
+    const mod = await import('electron-updater')
+    const autoUpdater = mod.autoUpdater ?? mod.default?.autoUpdater
+    if (!autoUpdater) return
+    updater = autoUpdater
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+
+    const forward = (payload) => {
+      titlebarView?.webContents.send('update:status', payload)
+      sidebarView?.webContents.send('update:status', payload)
+      if (win && !win.isDestroyed()) win.webContents.send('update:status', payload)
+    }
+    autoUpdater.on('checking-for-update', () => forward({ status: 'checking' }))
+    autoUpdater.on('update-available', (info) => forward({ status: 'available', version: String(info?.version ?? '') }))
+    autoUpdater.on('update-not-available', () => forward({ status: 'none' }))
+    autoUpdater.on('download-progress', (p) => forward({ status: 'downloading', percent: Math.round(p?.percent ?? 0) }))
+    autoUpdater.on('update-downloaded', (info) => forward({ status: 'downloaded', version: String(info?.version ?? '') }))
+    autoUpdater.on('error', () => forward({ status: 'error' }))
+
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(() => {})
+    }, 4000)
+  } catch {
+    // Updates are best-effort and never block the app.
+  }
+}
+
+ipcMain.handle('update:check', async () => {
+  if (!updater) return { ok: false, reason: 'unavailable' }
+  try {
+    await updater.checkForUpdates()
+    return { ok: true }
+  } catch {
+    return { ok: false }
+  }
+})
+
+ipcMain.on('update:install', () => {
+  try {
+    updater?.quitAndInstall()
+  } catch {
+    // ignore
+  }
+})
+
 /* ---------- layout ---------- */
 
 function layout() {
@@ -89,23 +307,18 @@ function layout() {
   titlebarView.setBounds({ x: 0, y: 0, width: w, height: TITLEBAR_H })
   sidebarView.setBounds({ x: 0, y: TITLEBAR_H, width: sidebarWidth, height: h - TITLEBAR_H })
 
-  if (activeTab === 'home') {
-    for (const t of tabViews.values()) t.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-    return
-  }
-
   // Content always starts after the sidebar — nothing is ever covered.
-  const t = tabViews.get(activeTab)
-  for (const other of tabViews.values()) {
-    if (other === t) {
-      other.view.setBounds({
+  const shown = activeTab === 'home' ? null : tabViews.get(activeTab)
+  for (const entry of tabViews.values()) {
+    if (entry === shown) {
+      entry.view.setBounds({
         x: sidebarWidth,
         y: TITLEBAR_H,
         width: w - sidebarWidth,
         height: h - TITLEBAR_H,
       })
     } else {
-      other.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      entry.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
     }
   }
 }
@@ -159,6 +372,7 @@ function pushNavState() {
       url: '',
       canGoBack: false,
       canGoForward: false,
+      blocked: 0,
       maximized: win?.isMaximized() ?? false,
     })
     return
@@ -167,9 +381,12 @@ function pushNavState() {
   if (!t) return
   const wc = t.view.webContents
   titlebarView.webContents.send('nav:state', {
-    url: wc.getURL(),
+    // Prefer the URL we tracked ourselves — getURL() can briefly be empty
+    // while a view's navigation is still settling.
+    url: t.url || wc.getURL(),
     canGoBack: wc.navigationHistory.canGoBack(),
     canGoForward: wc.navigationHistory.canGoForward(),
+    blocked: t.blocked ?? 0,
     maximized: win?.isMaximized() ?? false,
   })
 }
@@ -187,14 +404,28 @@ function closeTab(id) {
   const t = tabViews.get(id)
   if (!t) return
   tabViews.delete(id)
+  wcToTab.delete(t.wcId)
   try {
     win.contentView.removeChildView(t.view)
     if (!t.view.webContents.isDestroyed()) t.view.webContents.close()
   } catch {
     // ignore
   }
-  if (activeTab === id) activateTab('home')
-  else broadcastTabs()
+
+  if (activeTab === id) {
+    // Prefer another open tab, else the dashboard.
+    let next = 'home'
+    for (const otherId of tabViews.keys()) {
+      next = otherId
+      break
+    }
+    activeTab = next
+    layout()
+    broadcastTabs()
+    pushNavState()
+  } else {
+    broadcastTabs()
+  }
 }
 
 function closeActiveTab() {
@@ -219,8 +450,16 @@ function createTab(url, focus = true) {
       nodeIntegration: false,
     },
   })
-  const entry = { view, url, title: hostOf(url), loading: true }
+  const entry = {
+    view,
+    url,
+    title: hostOf(url),
+    loading: true,
+    blocked: 0,
+    wcId: view.webContents.id,
+  }
   tabViews.set(id, entry)
+  wcToTab.set(entry.wcId, id)
 
   // Keep chrome views always on top: tab views go below them.
   win.contentView.addChildView(view, 0)
@@ -236,6 +475,7 @@ function createTab(url, focus = true) {
   })
   view.webContents.on('did-navigate', (_e, target) => {
     entry.url = target
+    entry.blocked = 0
     broadcastTabs()
     pushNavState()
     requestAutologin(id, target)
@@ -478,6 +718,7 @@ ipcMain.on('win:maximize', () => {
   if (win.isMaximized()) win.unmaximize()
   else win.maximize()
 })
+ipcMain.on('win:restore', () => win?.restore())
 ipcMain.on('win:close', () => win?.close())
 
 ipcMain.on('tab:new', () => createTab(engineHomeUrl()))
@@ -504,12 +745,65 @@ ipcMain.on('nav:external', () => {
   if (url) void shell.openExternal(url)
 })
 
+/* ---------- downloads ---------- */
+
+ipcMain.handle('downloads:list', () =>
+  downloads.map((d) => ({
+    id: d.id,
+    filename: d.filename,
+    host: d.host,
+    received: d.received,
+    total: d.total,
+    state: d.state,
+    savePath: d.savePath,
+  })),
+)
+
+ipcMain.on('downloads:open', (_e, id) => {
+  const d = downloads.find((x) => x.id === Number(id))
+  if (d && d.state === 'completed') void shell.openPath(d.savePath)
+})
+
+ipcMain.on('downloads:reveal', (_e, id) => {
+  const d = downloads.find((x) => x.id === Number(id))
+  if (d) shell.showItemInFolder(d.savePath)
+})
+
+ipcMain.on('downloads:remove', (_e, id) => {
+  const num = Number(id)
+  const item = downloadItems.get(num)
+  if (item) {
+    try {
+      item.cancel()
+    } catch {
+      // ignore
+    }
+    downloadItems.delete(num)
+  }
+  const idx = downloads.findIndex((x) => x.id === num)
+  if (idx >= 0) downloads.splice(idx, 1)
+  broadcastDownloads(true)
+})
+
+ipcMain.on('downloads:clear', () => {
+  for (let i = downloads.length - 1; i >= 0; i--) {
+    if (downloads[i].state !== 'progressing') downloads.splice(i, 1)
+  }
+  broadcastDownloads(true)
+})
+
+/* ---------- blocking stats ---------- */
+
+ipcMain.handle('blocking:total', () => ({ total: blockTotal, enabled: blockTrackers }))
+
 /* ---------- persistent store file (survives version upgrades) ---------- */
 
 ipcMain.on('store:save', (_event, json) => {
   try {
     if (typeof json !== 'string' || json.length > 5_000_000) return
     fs.writeFileSync(storePath, json)
+    // Live-apply settings the main process owns (blocking, workspaces).
+    applyStoreSettings(json)
   } catch {
     // Best effort — localStorage remains as a fallback copy.
   }
@@ -532,7 +826,12 @@ ipcMain.on('store:clear', () => {
 })
 
 app.whenReady().then(() => {
+  const stored = readStoreFile()
+  if (stored) applyStoreSettings(stored)
+  setupBlocking()
+  setupDownloads()
   void createWindow()
+  void setupUpdater()
 })
 
 app.on('window-all-closed', () => {
